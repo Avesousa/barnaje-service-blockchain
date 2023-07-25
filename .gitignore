@@ -69,3 +69,6 @@ truffle.js
 hardhat.config.js
 artifacts/
 cache/
+
+#Barnaje web2.0
+barnajeWeb2.0/
