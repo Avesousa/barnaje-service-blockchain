@@ -1,0 +1,241 @@
+/// primero
+
+perfecto perdón que te frene, pero ya se hizo toda la parte inicial de truffle, y la inicialización del repositorio.
+
+Paso a explicarte lo que es el proyecto y como lo vamos a manejar:
+
+En principio el proyecto va estar relacionado con donaciones de usuarios a otros usuarios, pero, estos se van a manejar de la siguiente manera:
+
+1) El usuario va a tener que depositar el token (ERC-20) USDT y el contrato asignará tokens llamados coins internamente el cual corresponde al valor 1 a 1
+2) El usuario va a poder transferir coins a otros usuarios, siendo esté el proceso de deposito de otro.
+3) El usuario va a tener disponible 2 matrices, uno que va a hacer lineal (o sea un array de esponsoreados), y otros de referido que va hacer 2xN, es decir:
+    [0
+        [1
+            [3
+                [7
+                    [15
+                        [...],[...]
+                    ],
+                    [16
+                        [...],[...]
+                    ]
+                ],
+                [8
+                    [17
+                        [...],[...]
+                    ],
+                    [18
+                        [...],[...]
+                    ]
+                ]
+            ],
+            [4
+                [9
+                    [19
+                        [...],[...]
+                    ],
+                    [20
+                        [...],[...]
+                    ]
+                ],
+                [10
+                    [21
+                        [...],[...]
+                    ],
+                    [22
+                        [...],[...]
+                    ]
+                ]
+            ]
+        ],
+        [2
+            [5
+                [11
+                    [23
+                        [...],[...]
+                    ],
+                    [24
+                        [...],[...]
+                    ]
+                ],
+                [12
+                    [25
+                        [...],[...]
+                    ],
+                    [26
+                        [...],[...]
+                    ]
+                ]
+
+            ],
+            [6
+                [13
+                    [27
+                        [...],[...]
+                    ],
+                    [28
+                        [...],[...]
+                    ]
+                ],
+                [14
+                    [29
+                        [...],[...]
+                    ],
+                    [30
+                        [...],[...]
+                    ]
+                ]
+            ]
+        ]
+    ]
+    Unicamente quien tendrá un solo referido será el usuario barnaje.dao que es el usuario inicial de toda la piramide, y solo va a tener un usuario asociado en está matriz, todos los demás van a ser 2xN
+
+4) El usuario va a tener que donar esos coin en algún paquete de piso que tengamos disponible el cual sería lo siguiente:
+
+    Van existir 21 pisos los cuales serán divididos entre 3 dando así 7 categorías de pisos.
+    Los pisos van a ser tomados de abajo hacía arriba y cada uno de los pisos van a tener un valor monetario el cual se deberá pagar con el coin interno 
+
+    Llamaremos al usuario/wallet barn la cual en caso de no tener ninguna donación será un usuario sin pendaño, ahora bien, el usuario podrá tener un piso si realiza el pago correspondiente:
+
+    export const steps: StepData[] = [
+        {
+            amount: 50,
+            step: 1,
+            floor: Floor.bronze,
+        },
+        {
+            amount: 100,
+            step: 2,
+            floor: Floor.bronze,
+        },
+        {
+            amount: 200,
+            step: 3,
+            floor: Floor.bronze,
+        },
+        {
+            amount: 300,
+            step: 4,
+            floor: Floor.silver,
+        },
+        {
+            amount: 500,
+            step: 5,
+            floor: Floor.silver,
+        },
+        {
+            amount: 700,
+            step: 6,
+            floor: Floor.silver,
+        },
+        {
+            amount: 1000,
+            step: 7,
+            floor: Floor.gold,
+        },
+        {
+            amount: 1400,
+            step: 8,
+            floor: Floor.gold,
+        },
+        {
+            amount: 1800,
+            step: 9,
+            floor: Floor.gold,
+        },
+        {
+            amount: 2200,
+            step: 10,
+            floor: Floor.emerald,
+        },
+        {
+            amount: 2600,
+            step: 11,
+            floor: Floor.emerald,
+        },
+        {
+            amount: 3000,
+            step: 12,
+            floor: Floor.emerald,
+        },
+        {
+            amount: 3500,
+            step: 13,
+            floor: Floor.sapphire,
+        },
+        {
+            amount: 4000,
+            step: 14,
+            floor: Floor.sapphire,
+        },
+        {
+            amount: 4500,
+            step: 15,
+            floor: Floor.sapphire,
+        },
+        {
+            amount: 5000,
+            step: 16,
+            floor: Floor.ruby,
+        },
+        {
+            amount: 5500,
+            step: 17,
+            floor: Floor.ruby,
+        },
+        {
+            amount: 6000,
+            step: 18,
+            floor: Floor.ruby,
+        },
+        {
+            amount: 7000,
+            step: 19,
+            floor: Floor.diamond,
+        },
+        {
+            amount: 8000,
+            step: 20,
+            floor: Floor.diamond,
+        },
+        {
+            amount: 10000,
+            step: 21,
+            floor: Floor.diamond,
+        },
+    ];
+
+    para el caso del paso 1, 2, y 3 que serían categorías o piso de bronce, la lógica que tomará en cuenta será la siguiente:
+
+    Va a pagar directamente a su sponsor, para esto vamos a necesitar una matriz, ya que el sponsor, guardar dentro de ella sus referidos, pero debemos tomar en cuenta la siguiente lógica:
+
+        - Se deberá enviar la billetera por medio de la función de ejecución (una función que se encargue de ejecutar las donaciones)
+        - Se deberá verificar si la billetera no se coloca así mismo.
+        - Se deberá verificar si quien realiza la transacción tiene disponible coins internos para pagar el paso que le sigue según el orden de steps. (en caso de ser step 0 deberá tener mínimo 50 coins, y si es step 1, deberá tener mínimo 100) y así sucesivamente.
+        - Se deberá verificar si la billetera quien hace la acción no tiene asociado aún un sponsor, en caso de no tener asignarle uno de acuerdo a la siguiente lógica:
+            - Se deberá verificar que la billetera del sponsor (enviada por la función) debe tener por debajo de 4 referidos
+            - Si el sponsor tiene 4 referidos o más, deberá verificar si los referidos dentro de su matriz están completos (o sea tienen más de 3), en caso de no ser así deberá tomar la lógica de que el referido con menos referidos y con el menor indice de ubicación en la matriz es quien será el esponsor del usuario quien hace la ejecución, en el caso de que todos los usuarios estén completos con sus referidos se le asignará a la billetera enviada, así como también se le asignará a la billetera enviada en caso de que no esté completo los 4 referidos en su matriz
+    Esté paso deberá seguir haciendose hasta que el usuario ya no tenga un monto para pagar el siguiente paso.
+
+/// segundo
+Bien ahora necesito explicarte la lógica que usaremos para llenar el árbol de referidos, lo cual se llenarán en 2xN, y esto va a funcionar de la misma manera para todos los usuarios, exceptuando a la billetera genesis que es quien va a crear el contrato que va a tener un solo referido, de resto todo va a tomar la lógica que te describí.
+
+Ahora bien, cuando el usuario nuevo ingresa su donación, se para en el árbol de referidos del usuario que será sponsor (el cual se le asigna de acuerdo a la lógica del referido directo), y se deberá cumplir la lógica de que cada una de la matrices deben tener 2 usuarios, en caso de existir 2 usuarios debajo del sponsor, asignárselo al usuario debajo del referido directo (la lógica va dada de acuerdo al indice menor del array) y en caso de que ese usuario ya tengo los dos, verificar con el siguiente del mismo array, y si ya tiene sus dos asignaciones, deberá bajar otro punto más del array e ir buscando cual usuario no tiene aún sus dos usuarios en el orden de los indices del array.
+
+Ejemplo:
+Entra Avelino al proyecto, y se le asigna a Marta como su sponsor directo, pero Marta tiene su árbol de referido así:
+Marta: 
+[
+    Joaquin: [
+        Francisco: [
+            Junior, 
+            Barbara
+            ], 
+        Agustin: [Sandra]
+    Maria: [
+        Julian, 
+        Diego
+    ]
+]
+
+En esté caso se le asigna el referido por árbol a Agustin
