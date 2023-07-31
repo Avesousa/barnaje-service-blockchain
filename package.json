@@ -1,6 +1,10 @@
 {
+  "scripts": {
+    "migrate": "rm -rf build && truffle migrate --reset && node run.js"
+  },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.9.2"
+    "@openzeppelin/contracts": "^4.9.2",
+    "web3": "^1.5.3"
   },
   "devDependencies": {
     "chai": "^4.3.7"

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+import "./model/UserGenesis.sol";
 import "./model/StepData.sol";
 import "./model/Floor.sol";
 
@@ -34,5 +35,4 @@ contract Genesis is Ownable{
         steps[20] = StepData({amount: 10000 wei, step: 20, floor: Floor.DIAMOND, minimumReferrals: 4});
         return steps;
     }
-
 }
