@@ -70,5 +70,11 @@ hardhat.config.js
 artifacts/
 cache/
 
+# DsStore file
+.DS_Store
+
+# Prompt history file
+prompt.txt
+
 #Barnaje web2.0
 barnajeWeb2.0/

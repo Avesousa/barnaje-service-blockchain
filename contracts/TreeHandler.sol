@@ -8,7 +8,7 @@ import "./model/TreeNode.sol";
 
 contract TreeHandler is Ownable{
 
-    event addTree(address indexed user, address sponsor);
+    event addTree(address indexed user, address sponsor, address sponsorNode);
 
     Barnaje private barnaje;
     bool daoHasDoneNode;
@@ -25,7 +25,7 @@ contract TreeHandler is Ownable{
         address dao = barnaje.getDao();
         tree[dao].parent = address(0);
         tree[dao].upline = new address[](0);
-        emit addTree(dao, address(0));
+        emit addTree(dao, address(0), address(0));
     }
 
     function addToTree(address _user, address _sponsor) external onlyOwner {
@@ -47,24 +47,37 @@ contract TreeHandler is Ownable{
 
         while (front < queue.length) {
             address currentAddress = queue[front];
-            front += 1;
 
             if (tree[currentAddress].leftChild == address(0)) {
                 tree[currentAddress].leftChild = _user;
-                emit addTree(_user, _sponsor);
+                emit addTree(_user, _sponsor, currentAddress);
                 return;
             } 
             if (tree[currentAddress].rightChild == address(0)) {
                 tree[currentAddress].rightChild = _user;
-                emit addTree(_user, _sponsor);
+                emit addTree(_user, _sponsor, currentAddress);
                 return;
-            } else {
-                // If both spaces are full, we add the children to the queue
-                queue[front + 1] = tree[currentAddress].leftChild;
-                queue[front + 2] = tree[currentAddress].rightChild;
-                front += 2;
             }
+
+            // If both spaces are full, we add the children to the queue
+            if (tree[currentAddress].leftChild != address(0)) {
+                queue = pushAddress(queue, tree[currentAddress].leftChild);
+            }
+            if (tree[currentAddress].rightChild != address(0)) {
+                queue = pushAddress(queue, tree[currentAddress].rightChild);
+            }
+
+            front += 1;
         }
+    }
+
+    function pushAddress(address[] memory arr, address addr) private pure returns (address[] memory) {
+        address[] memory newArr = new address[](arr.length + 1);
+        for (uint256 i = 0; i < arr.length; i++) {
+            newArr[i] = arr[i];
+        }
+        newArr[arr.length] = addr;
+        return newArr;
     }
 
     function getTreeNode(address _addr) public view returns (TreeNode memory) {

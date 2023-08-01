@@ -16,7 +16,7 @@ contract DonationHandler is Ownable {
     Barnaje private barnaje;
     TreeHandler private treeHandler;
 
-    uint256 private MAX_STEPS = 20;
+    uint256 private MAX_STEPS = 21;
 
     constructor(Barnaje _barnaje, TreeHandler _treeHandler){
         barnaje = _barnaje;
@@ -27,15 +27,19 @@ contract DonationHandler is Ownable {
     function distributeDonation(
         address _donor,
         address _sponsor
-    ) external onlyOwner {
+    ) public onlyOwner {
         // Distribute the donation
         uint256 userBalance = barnaje.getUser(_donor).balance;
         StepData memory stepData = barnaje.getNextStep(_donor);
-        while (userBalance >= stepData.amount || stepData.step <= MAX_STEPS) {
-            distributeDonationToSponsors(_donor, stepData, _sponsor);
-            barnaje.setUserStep(_donor, stepData.step);
-            stepData = barnaje.getNextStep(_donor);
-            userBalance = barnaje.getUser(_donor).balance;
+        if(_donor != barnaje.getDao()) {
+            while (userBalance >= stepData.amount && stepData.step <= MAX_STEPS) {
+                distributeDonationToSponsors(_donor, stepData, _sponsor);
+                barnaje.setUserStep(_donor, stepData.step);
+                userBalance -= stepData.amount;
+                stepData = barnaje.getNextStep(_donor);
+            }
+        } else {
+            barnaje.setUserStep(_donor, MAX_STEPS);
         }
     }
 
@@ -56,21 +60,25 @@ contract DonationHandler is Ownable {
         }
         
         address[] memory upline = treeHandler.getTreeNode(_donor).upline;
-        uint256 indexFloor = 0;
+        uint256 indexFloor = 1;
         uint256 uplineLength = upline.length;
-
-        // Pay 50% to the sponsor direct and 25% and 25% to the sponsor sponsor
-        for (uint256 i = uplineLength; i > 0; i--) {
-            address uplineUser = upline[i - 1];
-            if (indexFloor >= uint(step.floor) &&
-                barnaje.getUser(uplineUser).directReferrals.length >= step.minimumReferrals &&
-                barnaje.getUserStep(uplineUser).step >= step.step &&
-                uplineUser != address(0)) {
-
-                distributeDonationToUser(_donor, uplineUser, step);
-                return;
+        
+        if(uplineLength > 0){
+            // Pay 50% to the sponsor direct and 25% and 25% to the sponsor sponsor
+            for (uint256 i = uplineLength - 1; i > 0; i--) {
+                address uplineUser = upline[i];
+                if (indexFloor >= uint256(step.floor) &&
+                    barnaje.getUser(uplineUser).directReferrals.length >= step.minimumReferrals &&
+                    barnaje.getUserStep(uplineUser).step >= step.step &&
+                    uplineUser != address(0)) {
+                    distributeDonationToUser(_donor, uplineUser, step);
+                    return;
+                }else if(uplineUser == barnaje.getDao() || uplineUser == address(0)){
+                    distributeDonationToUser(_donor, barnaje.getDao(), step);
+                    return;
+                }
+                indexFloor += 1;
             }
-            indexFloor += 1;
         }
         
         // If no sponsor meeting the conditions is found, send the donation to the DAO user.
@@ -86,19 +94,27 @@ contract DonationHandler is Ownable {
         address directSponsorSponsor = barnaje.getUser(directSponsor).sponsor;
         address dao = barnaje.getDao();
 
-        if (sponsor == dao) {
-            sendDonationToUser(donor, sponsor, step.step, step.amount);
+        if (sponsor == dao || sponsor == address(0)) {
+            sendDonationToUser(donor, dao, step.step, step.amount);
             return;
         }
 
-        if (directSponsor == dao) {
-            sendDonationToUser(donor,directSponsor,step.step,step.amount / 2);
+        if (directSponsor == dao || directSponsor == address(0)) {
+            sendDonationToUser(donor, sponsor, step.step, step.amount / 2);
+            sendDonationToUser(donor, dao, step.step,step.amount / 2);
+            return;
+        }
+
+        if(directSponsorSponsor == dao || directSponsorSponsor == address(0)){
+            sendDonationToUser(donor, sponsor, step.step, step.amount / 2);
+            sendDonationToUser(donor, directSponsor, step.step, step.amount / 4);
+            sendDonationToUser(donor, dao, step.step, step.amount / 4);
             return;
         }
 
         sendDonationToUser(donor, sponsor, step.step, step.amount / 2);
         sendDonationToUser(donor, directSponsor, step.step, step.amount / 4);
-        sendDonationToUser(donor,directSponsorSponsor,step.step,step.amount / 4
+        sendDonationToUser(donor,directSponsorSponsor, step.step,step.amount / 4
         );
     }
 

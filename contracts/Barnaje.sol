@@ -41,13 +41,13 @@ contract Barnaje is Ownable{
     constructor(IERC20 _usdt, address _dao) {
         usdt = _usdt;
         dao = _dao;
-        transferOwnership(dao);
     }
 
-    function initialize() public onlyOwner {
-        sponsorHandler = new SponsorHandler(this);
-        treeHandler = new TreeHandler(this);
-        donationHandler = new DonationHandler(this, treeHandler);
+    function initialize(SponsorHandler _sponsorHandler, TreeHandler _treeHandler, DonationHandler _donationHandler) public onlyOwner {
+        sponsorHandler = _sponsorHandler;
+        treeHandler = _treeHandler;
+        donationHandler = _donationHandler;
+        transferOwnership(dao);
     }
 
     function deposit(uint256 _amount) public {
@@ -78,11 +78,15 @@ contract Barnaje is Ownable{
     }
     
     function getNextStep(address _user) external view returns (StepData memory) {
-        StepData memory nextStep = steps[users[_user].step + 1];
-        if (nextStep.step <= steps.length) {
-            return nextStep;
+        uint256 step = users[_user].step;
+        uint256 stepsLength = steps.length;
+        if (0 == stepsLength) {
+            revert("Steps are 0");
         }
-        return steps[steps.length - 1];
+        if (step == stepsLength - 1) {
+            return steps[step];
+        }
+        return steps[step + 1];
     }
 
     function getUserStep(address _user) public view returns (StepData memory) {
@@ -139,10 +143,14 @@ contract Barnaje is Ownable{
     function completeUser(address _me, uint256 _balance, address _sponsor) public onlyOwner {
         User storage user = users[_me];
         user.balance = _balance;
-        // user.sponsor = _sponsor;
         user.isUser = true;
         address sponsorGot = sponsorHandler.manageSponsor(_me, _sponsor);
         treeHandler.addToTree(_me, sponsorGot);
+    }
+
+    function completeDonation(address _me) public onlyOwner {
+        User memory user = users[_me];
+        donationHandler.distributeDonation(_me, user.sponsor);
     }
     
 }
