@@ -37,6 +37,7 @@ contract Barnaje is Ownable{
     StepData[] private steps; // Steps and floor
     address private dao;  // DAO address
     bool private hasGenesis; // Flag to check if the contract is initialized
+    address[] forWithdraw; // Array of users for withdraw
 
     constructor(IERC20 _usdt, address _dao) {
         usdt = _usdt;
@@ -75,6 +76,48 @@ contract Barnaje is Ownable{
         // Increment receiver's balance
         users[_to].balance += _amount;
         emit Transfer(msg.sender, _to, _amount);
+    }
+
+    // Function that allows users to queue for a token withdrawal
+    function queueForWithdrawal() public {
+        require(users[msg.sender].isUser, "User does not exist"); // make sure it's a valid user
+        forWithdraw.push(msg.sender); // add the user to the array
+    }
+
+    // Function for the owner to withdraw and send tokens to all users in the array
+    function processWithdrawals() public onlyOwner {
+        uint256 totalBalance = usdt.balanceOf(address(this)); // get the contract's balance
+
+        for (uint256 i = 0; i < forWithdraw.length; i++) {
+            address userAddress = forWithdraw[i];
+            uint256 userBalance = users[userAddress].balance;
+
+            // Check if the contract's balance is enough to cover the withdrawal
+            if (totalBalance >= userBalance) {
+                usdt.transfer(userAddress, userBalance); // transfer tokens to the user
+                totalBalance -= userBalance; // update the contract's balance
+                users[userAddress].balance = 0; // reset the user's balance
+            } else {
+                // if the balance is not enough, only transfer what's left and update the user's balance
+                usdt.transfer(userAddress, totalBalance);
+                users[userAddress].balance -= totalBalance;
+                totalBalance = 0;
+            }
+
+            // if there are not enough tokens left in the contract, we stop the withdrawals
+            if (totalBalance == 0) {
+                break;
+            }
+        }
+
+        delete forWithdraw; // clear the array for the next round of withdrawals
+    }
+
+    // Function to receive (deposit) tokens into the contract
+    function depositTokens(uint256 _amount) public {
+        usdt.transferFrom(msg.sender, address(this), _amount); // receive tokens from the user
+        users[msg.sender].balance += _amount; // increase the user's balance
+        emit Deposit(msg.sender, _amount); // emit a deposit event
     }
     
     function getNextStep(address _user) external view returns (StepData memory) {

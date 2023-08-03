@@ -4,9 +4,11 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.9.2",
+    "@truffle/hdwallet-provider": "^2.1.13",
     "web3": "^1.5.3"
   },
   "devDependencies": {
-    "chai": "^4.3.7"
+    "chai": "^4.3.7",
+    "truffle-plugin-verify": "^0.6.4"
   }
 }

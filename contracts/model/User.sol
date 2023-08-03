@@ -6,5 +6,5 @@ struct User {
     uint256 step;  // current floor
     address sponsor;  // sponsor address
     address[] directReferrals;  // array of direct referrals
-    bool isUser;
+    bool isUser;  // flag to check if the user is registered
 }
