@@ -73,6 +73,10 @@ cache/
 # DsStore file
 .DS_Store
 
+# File secret
+.secret
+.apikey
+
 # Prompt history file
 prompt.txt
 
