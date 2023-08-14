@@ -6,8 +6,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Barnaje.sol";
 import "./model/User.sol";
 
-contract SponsorHandler is Ownable{
-
+contract SponsorHandler is Ownable {
+    
     Barnaje private barnaje;
 
     bool daoDone;
@@ -21,8 +21,8 @@ contract SponsorHandler is Ownable{
     function manageSponsor(address _user, address _sponsor) public onlyOwner returns (address){
         require(_user != address(0), "user cannot be 0 address");
         require(_sponsor != address(0) || _user == barnaje.getDao(), "sponsor cannot be 0 address");
-        // require(_user != barnaje.getDao() && !daoDone, "has a referral Dao cannot have more than one referral");
         require(_user != _sponsor, "user cannot be sponsor");
+        
         // If the user is the DAO, we don't need to find a new one or add to the tree
         if(_user == barnaje.getDao()){
             daoDone = true;
@@ -68,8 +68,6 @@ contract SponsorHandler is Ownable{
                 newSponsor = referral;
             }
         }
-
         return newSponsor;
     }
-
 }

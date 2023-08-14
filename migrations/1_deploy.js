@@ -3,6 +3,7 @@ const TreeHandler = artifacts.require("TreeHandler");
 const DonationHandler = artifacts.require("DonationHandler");
 const SponsorHandler = artifacts.require("SponsorHandler");
 const TestUSDT = artifacts.require("TestUSDT");
+const users_genesis = require('../resource/output.json');
 
 module.exports = async function (deployer, network, accounts) {
     let USDT_ADDRESS = "";
@@ -11,12 +12,12 @@ module.exports = async function (deployer, network, accounts) {
         await deployer.deploy(TestUSDT);
         const testUSDT = await TestUSDT.deployed();
         USDT_ADDRESS = testUSDT.address;
-        DAO = '0xE22C71c76a3b443D7fBc8E93C4b2E8A5735fc29b';
+        DAO = '0xF106a1CCe07Cd5C7Ee9e826F956c5A1b8004BA9a';
     } else if (network === "testnet") {
         await deployer.deploy(TestUSDT);
         const testUSDT = await TestUSDT.deployed();
         USDT_ADDRESS = testUSDT.address;
-        DAO = "0xf65dB4D5c32144e7b11450c580d2518F5A8E6d7D";
+        DAO = "0xF106a1CCe07Cd5C7Ee9e826F956c5A1b8004BA9a";
     } else {
         USDT_ADDRESS = "";
         DAO = "0xf65dB4D5c32144e7b11450c580d2518F5A8E6d7D";
@@ -36,37 +37,24 @@ module.exports = async function (deployer, network, accounts) {
     await barnaje.completeGenesis();
     await barnaje.initialize(sponsorHandler.address, treeHandler.address, donationHandler.address);
 
-    const users_genesis = [
-        { me: '0x0000000000000000000000000000000000000000', balance: web3.utils.toWei('67350','mwei'), sponsor: '0x0000000000000000000000000000000000000000' }, 
-        { me: '0x0000000000000000000000000000000000000000', balance: web3.utils.toWei('67350','mwei'), sponsor: '0x0000000000000000000000000000000000000000' }, 
-        { me: '0x0000000000000000000000000000000000000000', balance: web3.utils.toWei('67350','mwei'), sponsor: '0x0000000000000000000000000000000000000000' }, 
-        { me: '0x0000000000000000000000000000000000000000', balance: web3.utils.toWei('1850','mwei'), sponsor: '0x0000000000000000000000000000000000000000' }, 
-        { me: '0x0000000000000000000000000000000000000000', balance: web3.utils.toWei('67350','mwei'), sponsor: '0x0000000000000000000000000000000000000000' }, 
-        { me: '0x0000000000000000000000000000000000000000', balance: web3.utils.toWei('21350','mwei'), sponsor: '0x0000000000000000000000000000000000000000' }, 
-        { me: '0x0000000000000000000000000000000000000000', balance: web3.utils.toWei('67350','mwei'), sponsor: '0x0000000000000000000000000000000000000000' }, 
-        { me: '0x0000000000000000000000000000000000000000', balance: web3.utils.toWei('13850','mwei'), sponsor: '0x0000000000000000000000000000000000000000' }, 
-        { me: '0x0000000000000000000000000000000000000000', balance: web3.utils.toWei('13850','mwei'), sponsor: '0x0000000000000000000000000000000000000000' }, 
-        { me: '0x0000000000000000000000000000000000000000', balance: web3.utils.toWei('6050','mwei'), sponsor: '0x0000000000000000000000000000000000000000' }
-    ];
-
     // for (let i = 0; i < users_genesis.length; i++) {
     //     const user = users_genesis[i];
-    //     console.log('User ', user.me, ' creating...');
-    //     await barnaje.completeUser(user.me, user.balance, user.sponsor, { from: DAO, gas: 5000000 })
+    //     console.log('User ', user.wallet, ' creating...');
+    //     await barnaje.completeUser(user.wallet, web3.utils.toWei(user.balance,'mwei'), user.wallet_sponsor, user.wallet_partner, user.wallet_left_child, user.wallet_right_child, { gas: 5000000 })
     //     .then((res) => {
-    //         console.log('[',res.receipt.transactionHash,'] User ', user.me, ' created');
+    //         console.log('[',res.receipt.transactionHash,'] User ', user.wallet, ' created');
     //     })
     //     .catch((e) => {
-    //         console.error( '[',e.data?.hash ? e.data.hash : e.hijackedStack,'] User ', user.me, e.data?.message || '', e.data?.reason || '');
+    //         console.error( '[',e.data?.hash ? e.data.hash : e.hijackedStack,'] User ', user.wallet, e.data?.message || '', e.data?.reason || '');
     //         throw e.data?.reason ? `${e.data.message} ${e.data.reason}` : e.hijackedStack;
     //     });
-    //     console.log('User ', user.me, ' donating...');
-    //     await barnaje.completeDonation(user.me, { from: DAO, gas: 5000000 })
+    //     console.log('User ', user.wallet, ' donating...');
+    //     await barnaje.completeDonation(user.wallet, { gas: 5000000 })
     //     .then((res) => {
-    //         console.log('[',res.receipt.transactionHash,'] User ', user.me, ' donated');
+    //         console.log('[',res.receipt.transactionHash,'] User ', user.wallet, ' donated');
     //     })
     //     .catch((e) => {
-    //         console.error( '[',e.data?.hash ? e.data.hash : e.hijackedStack,'] User ', user.me, e.data?.message || '', e.data?.reason || '');
+    //         console.error( '[',e.data?.hash ? e.data.hash : e.hijackedStack,'] User ', user.wallet, e.data?.message || '', e.data?.reason || '');
     //         throw e.data?.reason ? `${e.data.message} ${e.data.reason}` : e.hijackedStack;
     //     });
     // }
