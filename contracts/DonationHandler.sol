@@ -17,6 +17,7 @@ contract DonationHandler is Ownable {
     TreeHandler private treeHandler;
 
     uint256 private MAX_STEPS = 21;
+    uint256 private MIN_STEP_FOR_USER_AVAILABLE = 4;
 
     constructor(Barnaje _barnaje, TreeHandler _treeHandler){
         barnaje = _barnaje;
@@ -37,6 +38,9 @@ contract DonationHandler is Ownable {
                 barnaje.setUserStep(_donor, stepData.step);
                 userBalance -= stepData.amount;
                 stepData = barnaje.getNextStep(_donor);
+            }
+            if(barnaje.getUserStep(_donor).step >= MIN_STEP_FOR_USER_AVAILABLE){
+                barnaje.enableUserToDistributeProfit(_donor);
             }
         } else {
             barnaje.setUserStep(_donor, MAX_STEPS);
@@ -64,6 +68,7 @@ contract DonationHandler is Ownable {
             barnaje.getUser(sponsorToDonate).amountDirectReferralReceived += step.amount;
             return;
         }
+
         
         address[] memory upline = treeHandler.getTreeNode(_donor).upline;
         uint256 indexFloor = 1;

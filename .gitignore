@@ -70,12 +70,16 @@ hardhat.config.js
 artifacts/
 cache/
 
+# Prompts
+prompt.txt
+
 # DsStore file
 .DS_Store
 
 # File secret
 .secret
 .apikey
+.apiSecretWallet
 
 # Prompt history file
 prompt.txt

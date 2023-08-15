@@ -2,28 +2,28 @@ const Barnaje = artifacts.require("Barnaje");
 const TreeHandler = artifacts.require("TreeHandler");
 const DonationHandler = artifacts.require("DonationHandler");
 const SponsorHandler = artifacts.require("SponsorHandler");
+const DaoWallet = artifacts.require("DaoWallet");
 const TestUSDT = artifacts.require("TestUSDT");
-const users_genesis = require('../resource/output.json');
 
 module.exports = async function (deployer, network, accounts) {
     let USDT_ADDRESS = "";
-    let DAO = ""
     if(network === "development"){  
         await deployer.deploy(TestUSDT);
         const testUSDT = await TestUSDT.deployed();
         USDT_ADDRESS = testUSDT.address;
-        DAO = '0xF106a1CCe07Cd5C7Ee9e826F956c5A1b8004BA9a';
     } else if (network === "testnet") {
         await deployer.deploy(TestUSDT);
         const testUSDT = await TestUSDT.deployed();
         USDT_ADDRESS = testUSDT.address;
-        DAO = "0xF106a1CCe07Cd5C7Ee9e826F956c5A1b8004BA9a";
     } else {
         USDT_ADDRESS = "";
-        DAO = "0xf65dB4D5c32144e7b11450c580d2518F5A8E6d7D";
     }
-    await deployer.deploy(Barnaje, USDT_ADDRESS, DAO);
+    
+    await deployer.deploy(Barnaje, USDT_ADDRESS);
     const barnaje = await Barnaje.deployed();
+
+    await deployer.deploy(DaoWallet, USDT_ADDRESS, barnaje.address);
+    const daoWallet = await DaoWallet.deployed();
      
     await deployer.deploy(TreeHandler, barnaje.address);
     const treeHandler = await TreeHandler.deployed();
@@ -35,40 +35,5 @@ module.exports = async function (deployer, network, accounts) {
     const sponsorHandler = await SponsorHandler.deployed();
     
     await barnaje.completeGenesis();
-    await barnaje.initialize(sponsorHandler.address, treeHandler.address, donationHandler.address);
-
-    // for (let i = 0; i < users_genesis.length; i++) {
-    //     const user = users_genesis[i];
-    //     console.log('User ', user.wallet, ' creating...');
-    //     await barnaje.completeUser(user.wallet, web3.utils.toWei(user.balance,'mwei'), user.wallet_sponsor, user.wallet_partner, user.wallet_left_child, user.wallet_right_child, { gas: 5000000 })
-    //     .then((res) => {
-    //         console.log('[',res.receipt.transactionHash,'] User ', user.wallet, ' created');
-    //     })
-    //     .catch((e) => {
-    //         console.error( '[',e.data?.hash ? e.data.hash : e.hijackedStack,'] User ', user.wallet, e.data?.message || '', e.data?.reason || '');
-    //         throw e.data?.reason ? `${e.data.message} ${e.data.reason}` : e.hijackedStack;
-    //     });
-    //     console.log('User ', user.wallet, ' donating...');
-    //     await barnaje.completeDonation(user.wallet, { gas: 5000000 })
-    //     .then((res) => {
-    //         console.log('[',res.receipt.transactionHash,'] User ', user.wallet, ' donated');
-    //     })
-    //     .catch((e) => {
-    //         console.error( '[',e.data?.hash ? e.data.hash : e.hijackedStack,'] User ', user.wallet, e.data?.message || '', e.data?.reason || '');
-    //         throw e.data?.reason ? `${e.data.message} ${e.data.reason}` : e.hijackedStack;
-    //     });
-    // }
-    // const convertWeiToUSDT = (wei) => {
-    //     let balanceUSDTBigNumber = new web3.utils.BN(wei);
-    //     return parseFloat(web3.utils.fromWei(balanceUSDTBigNumber, 'mwei'));
-    // }
-    
-    // for(let i = 0; i < users_genesis.length; i++){
-    //     await barnaje.getUser(users_genesis[i].me)
-    //         .then(async (res) => { 
-    //             const trees = await barnaje.getTree(users_genesis[i].me).then((res) => {return res});
-    //             console.log('\nUser =>',users_genesis[i].me, '| Balance:', convertWeiToUSDT(res.balance), 'Sponsor:', res.sponsor, 'Step:', res.step, 'Direct Referrals:', res.directReferrals, 
-    //             'Tree:',  { parent: trees.parent, leftChild: trees.leftChild, rightChild: trees.rightChild, upline: trees.upline });
-    //         });
-    // }
+    await barnaje.initialize(sponsorHandler.address, treeHandler.address, donationHandler.address, daoWallet.address);
 };

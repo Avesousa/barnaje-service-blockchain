@@ -40,6 +40,7 @@ contract Barnaje is Ownable{
     mapping(address => User) private users;
     
     StepData[] private steps; // Steps and floor
+    address[] private usersAvailable; // Users available for spread profits
     address private dao;  // DAO address
     bool private hasGenesis; // Flag to check if the contract is initialized
     bool private isPreLaunch; // Flag to check if the contract is pre launch
@@ -51,16 +52,16 @@ contract Barnaje is Ownable{
     uint256 private constant DECIMALS = 1e6;
     uint256 private constant MAX_AMOUNT_IN_PRELAUNCH = 6050 * DECIMALS;
 
-    constructor(IERC20 _usdt, address _dao) {
+    constructor(IERC20 _usdt) {
         usdt = _usdt;
-        dao = _dao;
         deploymentTime = block.timestamp;
     }
 
-    function initialize(SponsorHandler _sponsorHandler, TreeHandler _treeHandler, DonationHandler _donationHandler) public onlyOwner {
+    function initialize(SponsorHandler _sponsorHandler, TreeHandler _treeHandler, DonationHandler _donationHandler, address _dao) public onlyOwner {
         sponsorHandler = _sponsorHandler;
         treeHandler = _treeHandler;
         donationHandler = _donationHandler;
+        dao = _dao;
     }
 
     function deposit(uint256 _amount) public {
@@ -188,6 +189,14 @@ contract Barnaje is Ownable{
 
     function getUserCount() public view returns (uint256) {
         return userCount;
+    }
+
+    function enableUserToDistributeProfit(address _user) public OnlyKnownContract {
+        usersAvailable.push(_user);
+    }
+
+    function getUsersAvailable() public view returns (address[] memory) {
+        return usersAvailable;
     }
 
     function getAmountWithdrawn() public view returns (uint256) {

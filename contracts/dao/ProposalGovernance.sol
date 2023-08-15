@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 contract ProposalGovernance {
-    enum ProposalType { ChangeContract, AddOwner, RemoveOwner }
+    enum ProposalType { ChangeContract, AddOwner, RemoveOwner, SpreadProfits, ChangeWalletToCollect }
     
     struct Proposal {
         ProposalType proposalType;
