@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -11,11 +12,10 @@ import "./DonationHandler.sol";
 
 import "./model/StepData.sol";
 import "./model/TreeNode.sol";
-import "./model/UserGenesis.sol";
 import "./model/Floor.sol";
 import "./model/User.sol";
 
-contract Barnaje is Ownable{
+contract Barnaje is Ownable, ReentrancyGuard{
 
     event Deposit(address indexed donor, uint256 amount);
     event Transfer(address indexed from, address to, uint256 amount);
@@ -31,6 +31,11 @@ contract Barnaje is Ownable{
         _;
     }
 
+    modifier donationAllowModification() {
+        require(!donationHasModification, "Donation is not allowed to be modified");
+        _;
+    }
+
     IERC20 private usdt;  // USDT token contract interface
     DonationHandler public  donationHandler; // Donation handler contract interface
     SponsorHandler public sponsorHandler; // Manager sponsor contract interface
@@ -42,12 +47,14 @@ contract Barnaje is Ownable{
     StepData[] private steps; // Steps and floor
     address[] private usersAvailable; // Users available for spread profits
     address private dao;  // DAO address
-    bool private hasGenesis; // Flag to check if the contract is initialized
-    bool private isPreLaunch; // Flag to check if the contract is pre launch
     uint256 private userCount; // Total number of users
     uint256 private amountWithdrawn; // Total amount withdrawn
     uint256 private amountDonation; // Total amount donated
+    
     uint256 public deploymentTime; // Contract deployment time
+    bool private hasGenesis; // Flag to check if the contract is initialized
+    bool private isPreLaunch; // Flag to check if the contract is pre launch
+    bool private donationHasModification; // Flag to check if the contract is pre launch
 
     uint256 private constant DECIMALS = 1e6;
     uint256 private constant MAX_AMOUNT_IN_PRELAUNCH = 6050 * DECIMALS;
@@ -64,7 +71,7 @@ contract Barnaje is Ownable{
         dao = _dao;
     }
 
-    function deposit(uint256 _amount) public {
+    function deposit(uint256 _amount) public nonReentrant {
         require(!isPreLaunch || _amount == MAX_AMOUNT_IN_PRELAUNCH, "Amount exceeds maximum amount in prelaunch");
         usdt.transferFrom(msg.sender, address(this), _amount);
         users[msg.sender].balance += _amount;
@@ -72,7 +79,13 @@ contract Barnaje is Ownable{
         emit Deposit(msg.sender, _amount);
     }
 
-    function donate(address _sponsor) public {
+    // Function to receive (deposit) tokens into the contract
+    function depositTokens(uint256 _amount) public {
+        usdt.transferFrom(msg.sender, address(this), _amount); // receive tokens from the user
+        emit Deposit(msg.sender, _amount); // emit a deposit event
+    }
+
+    function donate(address _sponsor) public nonReentrant {
         require(getUserBalance(msg.sender) >= this.getNextStep(msg.sender).amount, "Insufficient balance for donation");
         require(_sponsor != msg.sender, "Cannot sponsor self");
         address actualSponsor = sponsorHandler.manageSponsor(msg.sender, _sponsor);
@@ -81,7 +94,7 @@ contract Barnaje is Ownable{
         createUser(msg.sender);
     }
 
-    function transfer(address _to, uint256 _amount) public {
+    function transfer(address _to, uint256 _amount) public nonReentrant {
         require(!isPreLaunch || _amount == MAX_AMOUNT_IN_PRELAUNCH, "Amount exceeds maximum amount in prelaunch");
         require(getUserBalance(msg.sender) >= _amount, "Insufficient balance for transfer");
         require(_to != msg.sender, "Cannot transfer to self");
@@ -97,7 +110,7 @@ contract Barnaje is Ownable{
     }
 
     // Function to withdraw tokens from the contract
-    function withdrawal(uint256 amount) public{
+    function withdrawal(uint256 amount) public nonReentrant {
         uint256 totalBalance = usdt.balanceOf(address(this)); // get the contract's balance
         uint256 userBalance = users[msg.sender].balanceAvailable;
 
@@ -146,15 +159,20 @@ contract Barnaje is Ownable{
 
     function setUserStep(address _user, uint256 step) public OnlyKnownContract{
         users[_user].step = step;
+        users[_user].countDonations = 0;
     }
 
     function getUserBalance(address _user) public view returns (uint256) {
         return users[_user].balance + users[_user].balanceAvailable;
     }
 
-    function addUserBalance(address _user, uint256 _amount) public OnlyKnownContract {
+    function addUserBalance(address _user, uint256 _amount, bool isDonationStep) public OnlyKnownContract {
         require(users[_user].isUser, "User does not exist");
         users[_user].balanceAvailable += _amount;
+        if(isDonationStep){
+            users[_user].countDonations += 1;
+        }
+        amountDonation += _amount;
     }
 
     function removeUserBalance(address _user, uint256 _amount) public OnlyKnownContract {
@@ -234,6 +252,11 @@ contract Barnaje is Ownable{
 
     function renounceOwnershipToDao() public onlyOwner {
         transferOwnership(dao);
+    }
+
+    function setNewDonationRule(address _donationHandler) public onlyOwner donationAllowModification {
+        donationHandler = DonationHandler(_donationHandler);
+        donationHasModification = true;
     }
     
 }

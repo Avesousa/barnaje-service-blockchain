@@ -2,12 +2,13 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./ProposalGovernance.sol";
 import "./SpreadProfits.sol";
 import "../Barnaje.sol";
 
-contract DaoWallet {
+contract DaoWallet is ReentrancyGuard{
     ProposalGovernance public governanceContract;
     SpreadProfits public dealer;
     Barnaje public barnaje;
@@ -62,7 +63,7 @@ contract DaoWallet {
         usdt.transfer(address(dealer), amount);
     }
 
-    function withdrawal() public onlyOwners {
+    function withdrawal() public nonReentrant onlyOwners {
         uint256 amount = barnaje.getUser(address(this)).balanceAvailable;
         barnaje.withdrawal(amount);
     }
@@ -102,7 +103,7 @@ contract DaoWallet {
         governanceContract.executeProposal(proposalId);
     }
 
-    function executeSpreadProfitsProposal(uint256 proposalId) external onlyOwners {
+    function executeSpreadProfitsProposal(uint256 proposalId) external nonReentrant onlyOwners {
         require(governanceContract.isProposalApproved(proposalId), "Proposal not approved or already executed");
         transfer();
         dealer.spreadProfits();
