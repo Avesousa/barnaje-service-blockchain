@@ -26,7 +26,7 @@ contract Genesis is Ownable{
         steps[7] = StepData({amount: convertToUSDT(1000), step: 7, floor: Floor.GOLD, minimumReferrals: 0});
         steps[8] = StepData({amount: convertToUSDT(1400), step: 8, floor: Floor.GOLD, minimumReferrals: 0});
         steps[9] = StepData({amount: convertToUSDT(1800), step: 9, floor: Floor.GOLD, minimumReferrals: 0});
-        steps[10]= StepData({amount: convertToUSDT(2200), step: 10, floor: Floor.EMERALD, minimumReferrals: 1});
+        steps[10] = StepData({amount: convertToUSDT(2200), step: 10, floor: Floor.EMERALD, minimumReferrals: 1});
         steps[11] = StepData({amount: convertToUSDT(2600), step: 11, floor: Floor.EMERALD, minimumReferrals: 1});
         steps[12] = StepData({amount: convertToUSDT(3000), step: 12, floor: Floor.EMERALD, minimumReferrals: 1});
         steps[13] = StepData({amount: convertToUSDT(3500), step: 13, floor: Floor.SAPPHIRE, minimumReferrals: 2});

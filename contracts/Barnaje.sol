@@ -26,6 +26,11 @@ contract Barnaje is Ownable{
         _;
     }
 
+    modifier onlyInFirst24Hours() {
+        require(block.timestamp <= deploymentTime + 1 days, "This function can only be called within the first 24 hours after deployment");
+        _;
+    }
+
     IERC20 private usdt;  // USDT token contract interface
     DonationHandler public  donationHandler; // Donation handler contract interface
     SponsorHandler public sponsorHandler; // Manager sponsor contract interface
@@ -35,30 +40,40 @@ contract Barnaje is Ownable{
     mapping(address => User) private users;
     
     StepData[] private steps; // Steps and floor
+    address[] private usersAvailable; // Users available for spread profits
     address private dao;  // DAO address
     bool private hasGenesis; // Flag to check if the contract is initialized
-    address[] forWithdraw; // Array of users for withdraw
+    bool private isPreLaunch; // Flag to check if the contract is pre launch
+    uint256 private userCount; // Total number of users
+    uint256 private amountWithdrawn; // Total amount withdrawn
+    uint256 private amountDonation; // Total amount donated
+    uint256 public deploymentTime; // Contract deployment time
 
-    constructor(IERC20 _usdt, address _dao) {
+    uint256 private constant DECIMALS = 1e6;
+    uint256 private constant MAX_AMOUNT_IN_PRELAUNCH = 6050 * DECIMALS;
+
+    constructor(IERC20 _usdt) {
         usdt = _usdt;
-        dao = _dao;
+        deploymentTime = block.timestamp;
     }
 
-    function initialize(SponsorHandler _sponsorHandler, TreeHandler _treeHandler, DonationHandler _donationHandler) public onlyOwner {
+    function initialize(SponsorHandler _sponsorHandler, TreeHandler _treeHandler, DonationHandler _donationHandler, address _dao) public onlyOwner {
         sponsorHandler = _sponsorHandler;
         treeHandler = _treeHandler;
         donationHandler = _donationHandler;
-        transferOwnership(dao);
+        dao = _dao;
     }
 
     function deposit(uint256 _amount) public {
+        require(!isPreLaunch || _amount == MAX_AMOUNT_IN_PRELAUNCH, "Amount exceeds maximum amount in prelaunch");
         usdt.transferFrom(msg.sender, address(this), _amount);
         users[msg.sender].balance += _amount;
+        users[msg.sender].amountDeposit += _amount;
         emit Deposit(msg.sender, _amount);
     }
 
     function donate(address _sponsor) public {
-        require(users[msg.sender].balance >= this.getNextStep(msg.sender).amount, "Insufficient balance for donation");
+        require(getUserBalance(msg.sender) >= this.getNextStep(msg.sender).amount, "Insufficient balance for donation");
         require(_sponsor != msg.sender, "Cannot sponsor self");
         address actualSponsor = sponsorHandler.manageSponsor(msg.sender, _sponsor);
 
@@ -67,57 +82,34 @@ contract Barnaje is Ownable{
     }
 
     function transfer(address _to, uint256 _amount) public {
-        require(users[msg.sender].balance >= _amount, "Insufficient balance for transfer");
+        require(!isPreLaunch || _amount == MAX_AMOUNT_IN_PRELAUNCH, "Amount exceeds maximum amount in prelaunch");
+        require(getUserBalance(msg.sender) >= _amount, "Insufficient balance for transfer");
         require(_to != msg.sender, "Cannot transfer to self");
         
         // Decrement sender's balance
-        users[msg.sender].balance -= _amount;
+        removeUserBalance(msg.sender, _amount);
+        users[msg.sender].amountTransferSent += _amount;
 
         // Increment receiver's balance
         users[_to].balance += _amount;
+        users[_to].amountTransferReceived += _amount;
         emit Transfer(msg.sender, _to, _amount);
     }
 
-    // Function that allows users to queue for a token withdrawal
-    function queueForWithdrawal() public {
-        require(users[msg.sender].isUser, "User does not exist"); // make sure it's a valid user
-        forWithdraw.push(msg.sender); // add the user to the array
-    }
-
-    // Function for the owner to withdraw and send tokens to all users in the array
-    function processWithdrawals() public onlyOwner {
+    // Function to withdraw tokens from the contract
+    function withdrawal(uint256 amount) public{
         uint256 totalBalance = usdt.balanceOf(address(this)); // get the contract's balance
+        uint256 userBalance = users[msg.sender].balanceAvailable;
 
-        for (uint256 i = 0; i < forWithdraw.length; i++) {
-            address userAddress = forWithdraw[i];
-            uint256 userBalance = users[userAddress].balance;
+        require(totalBalance >= amount, "Insufficient balance for withdrawal in contract");
+        require(userBalance >= amount, "Insufficient balance for withdrawal");
 
-            // Check if the contract's balance is enough to cover the withdrawal
-            if (totalBalance >= userBalance) {
-                usdt.transfer(userAddress, userBalance); // transfer tokens to the user
-                totalBalance -= userBalance; // update the contract's balance
-                users[userAddress].balance = 0; // reset the user's balance
-            } else {
-                // if the balance is not enough, only transfer what's left and update the user's balance
-                usdt.transfer(userAddress, totalBalance);
-                users[userAddress].balance -= totalBalance;
-                totalBalance = 0;
-            }
-
-            // if there are not enough tokens left in the contract, we stop the withdrawals
-            if (totalBalance == 0) {
-                break;
-            }
-        }
-
-        delete forWithdraw; // clear the array for the next round of withdrawals
-    }
-
-    // Function to receive (deposit) tokens into the contract
-    function depositTokens(uint256 _amount) public {
-        usdt.transferFrom(msg.sender, address(this), _amount); // receive tokens from the user
-        users[msg.sender].balance += _amount; // increase the user's balance
-        emit Deposit(msg.sender, _amount); // emit a deposit event
+        // Decrement sender's balance
+        users[msg.sender].balanceAvailable -= amount;
+        users[msg.sender].amountWithdrawn += amount;
+        amountWithdrawn += amount;
+        usdt.transfer(msg.sender, amount);
+        emit Withdrawn(msg.sender, amount);
     }
     
     function getNextStep(address _user) external view returns (StepData memory) {
@@ -156,14 +148,31 @@ contract Barnaje is Ownable{
         users[_user].step = step;
     }
 
+    function getUserBalance(address _user) public view returns (uint256) {
+        return users[_user].balance + users[_user].balanceAvailable;
+    }
+
     function addUserBalance(address _user, uint256 _amount) public OnlyKnownContract {
         require(users[_user].isUser, "User does not exist");
-        users[_user].balance += _amount;
+        users[_user].balanceAvailable += _amount;
     }
 
     function removeUserBalance(address _user, uint256 _amount) public OnlyKnownContract {
-        require(users[_user].balance >= _amount, "Insufficient balance");
-        users[_user].balance -= _amount;
+        uint256 balance = getUserBalance(_user);
+        require(balance >= _amount, "Insufficient balance");
+
+        // Si el balance es suficiente para cubrir el _amount
+        if (users[_user].balance >= _amount) {
+            users[_user].balance -= _amount;
+        } else {
+            // Si el balance no es suficiente, primero usamos lo que queda en balance
+            uint256 remaining = _amount - users[_user].balance; 
+            users[_user].balance = 0; // vaciamos el balance
+
+            // Luego deducimos la cantidad restante del balanceAvailable
+            require(users[_user].balanceAvailable >= remaining, "Insufficient available balance");
+            users[_user].balanceAvailable -= remaining;
+        }
     }
 
     function addSponsor(address _user, address sponsor) public OnlyKnownContract {
@@ -174,8 +183,32 @@ contract Barnaje is Ownable{
         users[_user].directReferrals.push(referral);
     }
 
-    // Function for genesis
-    function completeGenesis() public onlyOwner {
+    function newUser() public OnlyKnownContract {
+        userCount += 1;
+    }
+
+    function getUserCount() public view returns (uint256) {
+        return userCount;
+    }
+
+    function enableUserToDistributeProfit(address _user) public OnlyKnownContract {
+        usersAvailable.push(_user);
+    }
+
+    function getUsersAvailable() public view returns (address[] memory) {
+        return usersAvailable;
+    }
+
+    function getAmountWithdrawn() public view returns (uint256) {
+        return amountWithdrawn;
+    }
+
+    function getAmountDonation() public view returns (uint256) {
+        return amountDonation;
+    }
+
+    // Function only for genesis before launch (24 hours)
+    function completeGenesis() public onlyOwner onlyInFirst24Hours {
         Genesis genesis = new Genesis();
         StepData[] memory stepsData = genesis.generateSteps();
         for (uint256 i = 0; i < stepsData.length; i++) {
@@ -183,17 +216,24 @@ contract Barnaje is Ownable{
         }
     }
 
-    function completeUser(address _me, uint256 _balance, address _sponsor) public onlyOwner {
+    function completeUser(address _me, uint256 _balance, address _sponsor, address _partner, address _leftChild, address _rightChild) public onlyOwner onlyInFirst24Hours {
+        require(_me != address(0), "User wallet cannot be 0x0");
+        require(_sponsor != address(0) || _me == dao, "Sponsor wallet cannot be 0x0");
+        require(_partner != address(0) || _me == dao, "Partner wallet cannot be 0x0");
         User storage user = users[_me];
         user.balance = _balance;
         user.isUser = true;
-        address sponsorGot = sponsorHandler.manageSponsor(_me, _sponsor);
-        treeHandler.addToTree(_me, sponsorGot);
+        users[_me].sponsor = _sponsor;
+        treeHandler.pushToTreeManually(_me, _partner, _leftChild, _rightChild);
     }
 
-    function completeDonation(address _me) public onlyOwner {
+    function completeDonation(address _me) public onlyOwner onlyInFirst24Hours {
         User memory user = users[_me];
         donationHandler.distributeDonation(_me, user.sponsor);
+    }
+
+    function renounceOwnershipToDao() public onlyOwner {
+        transferOwnership(dao);
     }
     
 }

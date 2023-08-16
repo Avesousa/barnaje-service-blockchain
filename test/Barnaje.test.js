@@ -4,41 +4,60 @@ const TestUSDT = artifacts.require('TestUSDT');
 const { expect } = require('chai');
 const { BN } = require('web3-utils');
 
-contract('Barnaje', ([deployer, user1, user2]) => {
-  let barnaje;
-  let testUsdt;
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
 
-  beforeEach(async function () {
-    // Desplegar el contrato TestUSDT
-    testUsdt = await TestUSDT.new({ from: deployer });
-
-    // Dar algunos tokens a los usuarios
-    await testUsdt.transfer(user1, (6050 * 10**6).toString(), { from: deployer });
-    await testUsdt.transfer(user2, (6050 * 10**6).toString(), { from: deployer });
-
-    // Desplegar el contrato Barnaje
-    barnaje = await Barnaje.new(testUsdt.address, { from: deployer });
-  });
-
-  describe('donate()', function () {
-    it('donates the correct amount', async function () {
-      const amount = new BN((50 * 10**6).toString());
-
-      // Deposit the tokens to Barnaje
-      await testUsdt.approve(barnaje.address, amount, { from: user1 });
-      await barnaje.deposit(amount, { from: user1 });
-
-      const initialBalanceUser1 = await testUsdt.balanceOf(user1);
-      const initialBalanceSponsor = await testUsdt.balanceOf(user2);
-
-      // Make the donation
-      await barnaje.donate(user2, { from: user1 });
-
-      const finalBalanceUser1 = await testUsdt.balanceOf(user1);
-      const finalBalanceSponsor = await testUsdt.balanceOf(user2);
-
-      expect(finalBalanceUser1).to.be.bignumber.equal(initialBalanceUser1.sub(amount));
-      expect(finalBalanceSponsor).to.be.bignumber.equal(initialBalanceSponsor.add(amount));
+describe("Barnaje", function() {
+    let Barnaje, barnaje, owner, addr1, addr2;
+    beforeEach(async () => {
+        Barnaje = await ethers.getContractFactory("Barnaje");
+        [owner, addr1, addr2, _] = await ethers.getSigners();
+        barnaje = await Barnaje.deploy();
+        await barnaje.deployed();
     });
-  });
+
+    it("Should deposit correctly", async function() {
+        await barnaje.connect(addr1).deposit(100);
+        let user = await barnaje.getUser(addr1.address);
+        expect(user.balance).to.equal(100);
+    });
+
+    it("Should not allow deposit more than the balance", async function() {
+        await expect(barnaje.connect(addr1).deposit(200)).to.be.reverted;
+    });
+
+    it("Should handle donation correctly", async function() {
+        await barnaje.connect(addr1).deposit(100);
+        await barnaje.connect(addr2).deposit(200);
+        await barnaje.connect(addr1).donate(addr2.address);
+        let user1 = await barnaje.getUser(addr1.address);
+        let user2 = await barnaje.getUser(addr2.address);
+        expect(user1.balance).to.equal(0);
+        expect(user2.balance).to.equal(300);
+    });
+
+    it("Should not allow donation more than the balance", async function() {
+        await barnaje.connect(addr1).deposit(100);
+        await expect(barnaje.connect(addr1).donate(addr2.address)).to.be.reverted;
+    });
+
+    it("Should handle transfer correctly", async function() {
+        await barnaje.connect(addr1).deposit(100);
+        await barnaje.connect(addr1).transfer(addr2.address, 50);
+        let user1 = await barnaje.getUser(addr1.address);
+        let user2 = await barnaje.getUser(addr2.address);
+        expect(user1.balance).to.equal(50);
+        expect(user2.balance).to.equal(50);
+    });
+
+    it("Should not allow transfer more than the balance", async function() {
+        await barnaje.connect(addr1).deposit(100);
+        await expect(barnaje.connect(addr1).transfer(addr2.address, 200)).to.be.reverted;
+    });
+
+    it("Should create user correctly", async function() {
+        await barnaje.createUser(addr1.address);
+        let user = await barnaje.getUser(addr1.address);
+        expect(user.isUser).to.be.true;
+    });
 });
