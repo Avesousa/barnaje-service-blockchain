@@ -5,6 +5,7 @@ struct User {
     uint256 balance;  // internal coins balance
     uint256 balanceAvailable; // internal coins balance available to withdraw
     uint256 step;  // current floor
+    uint256 countDonations; // number of donations for current step
     address sponsor;  // sponsor address
     address[] directReferrals;  // array of direct referrals
     bool isUser;  // flag to check if the user is registered

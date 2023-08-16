@@ -93,7 +93,7 @@ contract DonationHandler is Ownable {
         }
         
         // If no sponsor meeting the conditions is found, send the donation to the DAO user.
-        sendDonationToUser(_donor, barnaje.getDao(), step.step, step.amount);
+        sendDonationToUser(_donor, barnaje.getDao(), step.step, step.amount, true);
     }
 
     function distributeDonationToUser(
@@ -109,14 +109,14 @@ contract DonationHandler is Ownable {
         uint256 amountToGeneration = amount / 4;
 
         if (sponsor == dao || sponsor == address(0)) {
-            sendDonationToUser(donor, dao, step.step, amount);
+            sendDonationToUser(donor, dao, step.step, amount, true);
             barnaje.getUser(dao).amountSponsorReceived += amount;
             return;
         }
 
         if (directSponsor == dao || directSponsor == address(0)) {
-            sendDonationToUser(donor, sponsor, step.step, amountToSponsor);
-            sendDonationToUser(donor, dao, step.step,amountToSponsor);
+            sendDonationToUser(donor, sponsor, step.step, amountToSponsor, true);
+            sendDonationToUser(donor, dao, step.step,amountToSponsor, false);
 
             barnaje.getUser(sponsor).amountSponsorReceived += amountToSponsor;
             barnaje.getUser(dao).amountSponsorReceived += amountToSponsor;
@@ -124,9 +124,9 @@ contract DonationHandler is Ownable {
         }
 
         if(directSponsorSponsor == dao || directSponsorSponsor == address(0)){
-            sendDonationToUser(donor, sponsor, step.step, amountToSponsor);
-            sendDonationToUser(donor, directSponsor, step.step, amountToGeneration);
-            sendDonationToUser(donor, dao, step.step, amountToGeneration);
+            sendDonationToUser(donor, sponsor, step.step, amountToSponsor, true);
+            sendDonationToUser(donor, directSponsor, step.step, amountToGeneration, false);
+            sendDonationToUser(donor, dao, step.step, amountToGeneration, false);
 
             barnaje.getUser(sponsor).amountSponsorReceived += amountToSponsor;
             barnaje.getUser(directSponsor).amountFirtsGenerationReceived += amountToGeneration;
@@ -134,9 +134,9 @@ contract DonationHandler is Ownable {
             return;
         }
 
-        sendDonationToUser(donor, sponsor, step.step, amountToSponsor);
-        sendDonationToUser(donor, directSponsor, step.step, amountToGeneration);
-        sendDonationToUser(donor,directSponsorSponsor, step.step,amountToGeneration);
+        sendDonationToUser(donor, sponsor, step.step, amountToSponsor, true);
+        sendDonationToUser(donor, directSponsor, step.step, amountToGeneration, false);
+        sendDonationToUser(donor,directSponsorSponsor, step.step,amountToGeneration, false);
 
         barnaje.getUser(sponsor).amountSponsorReceived += amountToSponsor;
         barnaje.getUser(directSponsor).amountFirtsGenerationReceived += amountToGeneration;
@@ -153,8 +153,8 @@ contract DonationHandler is Ownable {
         }
     }
 
-    function sendDonationToUser(address donor,address sponsor,uint256 step,uint256 amount) private {
-        barnaje.addUserBalance(sponsor, amount);
+    function sendDonationToUser(address donor,address sponsor,uint256 step,uint256 amount, bool isDonationStep) private {
+        barnaje.addUserBalance(sponsor, amount, isDonationStep);
         barnaje.removeUserBalance(donor, amount);
         emit Donate(donor, sponsor, step + 1, amount);
     }
